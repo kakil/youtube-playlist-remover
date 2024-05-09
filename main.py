@@ -14,34 +14,35 @@ import googleapiclient.errors
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import google.auth.exceptions as exceptions
 import streamlit as st
 
-# Define the scope: we need permissions to manage the playlist
+# Define the scope: permissions needed to manage the playlist
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 # Create the flow using the client secrets file from the Google API Console
-flow = InstalledAppFlow.from_client_secrets_file(
-    'client_secret.json',
-    scopes=scopes
-)
+flow = InstalledAppFlow.from_client_secrets_file('client_secret.json', scopes=scopes)
 
-# Before making API calls
+# Load credentials from a pickle file or authenticate if necessary
 if os.path.exists('token.pickle'):
     with open('token.pickle', 'rb') as token:
         credentials = pickle.load(token)
-        if credentials.expired:
-            credentials.refresh(Request())
 else:
+    # No credentials available; prompt the user to log in
     credentials = flow.run_local_server(port=8080)
     with open('token.pickle', 'wb') as token:
         pickle.dump(credentials, token)
 
+# Check if the credentials are expired and refresh them if necessary
+if credentials.expired:
+    try:
+        credentials.refresh(Request())
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(credentials, token)
+    except Exception as e:
+        st.error(f"Failed to refresh the access token: {e}")
 
-# Save the credentials for the next run
-with open('token.pickle', 'wb') as token:
-    pickle.dump(credentials, token)
-
-from googleapiclient.discovery import build
 
 # Build the YouTube client
 youtube = build('youtube', 'v3', credentials=credentials)
